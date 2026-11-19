@@ -2,11 +2,11 @@
 
 import { createDeepAgent } from "deepagents/browser";
 import { ChatAnthropic } from "@langchain/anthropic";
-import { toolStrategy } from "langchain";
+import { providerStrategy } from "langchain";
 import { COACH_FILES } from "@/generated/coach-files";
 import { CoachReplySchema, replyToText, type ChatMessage, type CoachReply } from "./types";
 
-export const DEFAULT_MODEL = "claude-sonnet-5-5";
+export const DEFAULT_MODEL = "claude-opus-5-5";
 
 /**
  * Runs the skill-driven deep agent entirely in the browser.
@@ -29,8 +29,9 @@ function buildAgent(apiKey: string, model: string) {
       { operations: ["read"], paths: ["/**"] },
       { operations: ["write"], paths: ["/**"], mode: "deny" },
     ],
-    // Tool-calling structured output: the final answer must match the reply schema.
-    responseFormat: toolStrategy(CoachReplySchema),
+    // Native structured output (Anthropic output_config.format = json_schema). Claude 5-generation
+    // models reject forced tool_choice, so tool-based structured output isn't an option.
+    responseFormat: providerStrategy(CoachReplySchema),
   });
 }
 
@@ -73,5 +74,6 @@ export async function runCoach(
   const result = await cached.agent.invoke({ messages, files: seedFiles() }, { recursionLimit: 25 });
   const parsed = CoachReplySchema.safeParse((result as { structuredResponse?: unknown }).structuredResponse);
   if (!parsed.success) throw new Error("The coach returned an unexpected reply format.");
-  return parsed.data;
+  // Keep replies brief even if the model over-delivers (schema can't bound array length).
+  return { ...parsed.data, steps: parsed.data.steps.slice(0, 4) };
 }

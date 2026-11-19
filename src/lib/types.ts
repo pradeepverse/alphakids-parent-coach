@@ -16,8 +16,7 @@ export const CoachReplySchema = z.object({
         detail: z.string().describe("1-2 short sentences: what to do or say"),
       }),
     )
-    .min(1)
-    .max(4),
+    .describe("2-4 steps (3 is ideal)"),
   checkIn: z.object({
     kind: z.enum(["question", "time"]),
     text: z.string().describe("Follow-up question, or when to come back"),

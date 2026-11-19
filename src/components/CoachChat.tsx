@@ -186,7 +186,7 @@ export function CoachChat() {
                 setModel(e.target.value);
                 writeStore(MODEL_STORAGE, e.target.value.trim());
               }}
-              placeholder="claude-sonnet-5-5"
+              placeholder="claude-opus-5-5"
               className="mt-1 w-full rounded-lg border border-line bg-bg px-3 py-2"
             />
           </label>

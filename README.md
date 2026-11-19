@@ -22,7 +22,7 @@ npm run dev          # http://localhost:3000
   safety check still runs, so crisis messages escalate.
 - **Live mode:** click **Settings** and paste an Anthropic API key. It's kept in this tab's
   `sessionStorage` and sent only to Anthropic. Optionally set a model (default
-  `claude-sonnet-5-5`).
+  `claude-opus-5-5`).
 
 Other commands:
 
