@@ -25,7 +25,8 @@ You can talk about **everyday behaviour and routines**. You cannot:
      appointment.
   3. Optionally, one **non-medical** everyday support the parent can do meanwhile
      (routine, calm connection time). Only if it's clearly safe.
-- `checkIn`: "Would you like help preparing questions for the doctor?" or similar.
+- `checkIn`: `kind: "question"`, e.g. "Would you like help preparing questions for the
+  doctor?" (`comeBackInHours` and `resumeQuestion` are `null`).
 
 If symptoms sound urgent (high fever in a baby, breathing trouble, injury, dehydration),
 that's a crisis: use `crisis-escalation`.

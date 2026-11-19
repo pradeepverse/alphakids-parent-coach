@@ -1,12 +1,22 @@
 import type { CoachReply, ReplySource } from "@/lib/types";
+import { dueLabel } from "@/lib/checkins";
 
 const LABELS = {
-  en: { plan: "Your plan", checkIn: "Check-in", cautionTitle: "Outside what a coach can advise on" },
-  ur: { plan: "آپ کا پلان", checkIn: "اگلا قدم", cautionTitle: "یہ کوچ کے دائرے سے باہر ہے" },
-  "ur-Latn": { plan: "Aap ka plan", checkIn: "Check-in", cautionTitle: "Yeh coach ke daairay se bahar hai" },
+  en: { plan: "Your plan", question: "Quick question", cautionTitle: "Outside what a coach can advise on" },
+  ur: { plan: "آپ کا پلان", question: "ایک سوال", cautionTitle: "یہ کوچ کے دائرے سے باہر ہے" },
+  "ur-Latn": { plan: "Aap ka plan", question: "Aik sawal", cautionTitle: "Yeh coach ke daairay se bahar hai" },
 } as const;
 
-export function ReplyCard({ reply, source }: { reply: CoachReply; source: ReplySource }) {
+interface Props {
+  reply: CoachReply;
+  source: ReplySource;
+  reminded?: boolean;
+  checkedIn?: boolean;
+  onAnswer?: () => void;
+  onRemind?: () => void;
+}
+
+export function ReplyCard({ reply, source, reminded, checkedIn, onAnswer, onRemind }: Props) {
   const rtl = reply.language === "ur";
   const L = LABELS[reply.language];
   const crisis = reply.risk === "crisis";
@@ -52,13 +62,14 @@ export function ReplyCard({ reply, source }: { reply: CoachReply; source: ReplyS
           </ol>
         </div>
 
-        <div className="flex items-start gap-2 rounded-xl bg-brand-soft px-3 py-2 text-sm">
-          <span aria-hidden>{reply.checkIn.kind === "time" ? "⏰" : "💬"}</span>
-          <p>
-            <span className="font-semibold">{L.checkIn}: </span>
-            {reply.checkIn.text}
-          </p>
-        </div>
+        <CheckIn
+          reply={reply}
+          questionLabel={L.question}
+          reminded={reminded}
+          checkedIn={checkedIn}
+          onAnswer={onAnswer}
+          onRemind={onRemind}
+        />
 
         {source !== "live" && (
           <p className="text-[0.7rem] text-muted" dir="ltr">
@@ -67,6 +78,50 @@ export function ReplyCard({ reply, source }: { reply: CoachReply; source: ReplyS
         )}
       </div>
     </article>
+  );
+}
+
+/**
+ * The follow-up. Two different things, so two different looks:
+ *  - question: answer it now, in this chat ("Answer" focuses the input)
+ *  - time:     try the plan, come back later ("Remind me" adds a calendar reminder that reopens this chat)
+ */
+function CheckIn({
+  reply,
+  questionLabel,
+  reminded,
+  checkedIn,
+  onAnswer,
+  onRemind,
+}: {
+  reply: CoachReply;
+  questionLabel: string;
+  reminded?: boolean;
+  checkedIn?: boolean;
+  onAnswer?: () => void;
+  onRemind?: () => void;
+}) {
+  const later = reply.checkIn.kind === "time" && reply.risk !== "crisis";
+  const btn =
+    "mt-2 inline-flex min-h-9 items-center gap-1 rounded-lg border border-brand/40 bg-surface px-3 text-xs font-semibold text-brand hover:bg-brand hover:text-white focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-60";
+  return (
+    <div className="rounded-xl bg-brand-soft px-3 py-2 text-sm" data-testid={later ? "checkin-later" : "checkin-now"}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand" dir="ltr" lang="en">
+        {later ? `⏰ Check back ${dueLabel(reply.checkIn.comeBackInHours)}` : `💬 ${questionLabel}`}
+      </p>
+      <p className="mt-0.5">{reply.checkIn.text}</p>
+      {later
+        ? onRemind && (
+            <button type="button" className={btn} onClick={onRemind} disabled={reminded || checkedIn} dir="ltr" lang="en">
+              {checkedIn ? "✓ Checked in" : reminded ? "✓ Reminder added to your calendar" : "📅 Remind me"}
+            </button>
+          )
+        : onAnswer && (
+            <button type="button" className={btn} onClick={onAnswer} dir="ltr" lang="en">
+              Answer ↵
+            </button>
+          )}
+    </div>
   );
 }
 

@@ -14,7 +14,7 @@ export function crisisReply(text: string): CoachReply {
           { title: "بچے کو محفوظ رکھیں", detail: "بچے کے ساتھ رہیں اور نقصان پہنچانے والی چیز یا شخص سے دور رکھیں۔" },
           { title: "کسی ماہر سے رابطہ", detail: "ڈاکٹر، بچوں کے تحفظ کے ادارے یا کسی بھروسے کے بڑے سے فوراً بات کریں۔" },
         ],
-        checkIn: { kind: "question", text: "کیا آپ اور آپ کا بچہ اس وقت محفوظ ہیں؟" },
+        checkIn: { kind: "question", text: "کیا آپ اور آپ کا بچہ اس وقت محفوظ ہیں؟", comeBackInHours: null, resumeQuestion: null },
       }
     : {
         risk: "crisis",
@@ -28,7 +28,7 @@ export function crisisReply(text: string): CoachReply {
             detail: "Contact a doctor, your local child-protection service, or a crisis helpline as soon as you can.",
           },
         ],
-        checkIn: { kind: "question", text: "Are you and your child safe right now?" },
+        checkIn: { kind: "question", text: "Are you and your child safe right now?", comeBackInHours: null, resumeQuestion: null },
       };
 }
 
@@ -50,7 +50,12 @@ export function demoReply(text: string): CoachReply {
             { title: "Pehle jazbaat, phir hadd", detail: "Kahein: 'Main samajhta/samajhti hoon aap naraz ho, lekin qaida wohi rahega.'" },
             { title: "Choti tareef", detail: "Jab bacha thora sa bhi sahi kare, foran tareef karein." },
           ],
-          checkIn: { kind: "time", text: "Teen din yeh aazmayein, phir batayein kya farq para?" },
+          checkIn: {
+            kind: "time",
+            text: "Teen din yeh aazmayein, phir batayein kya farq para?",
+            comeBackInHours: 72,
+            resumeQuestion: "Teen din ho gaye! Naya routine kaisa chala? Kya farq para?",
+          },
         }
       : {
           risk: "none",
@@ -61,7 +66,12 @@ export function demoReply(text: string): CoachReply {
             { title: "پہلے جذبات، پھر حد", detail: "کہیں: 'میں سمجھتی ہوں آپ ناراض ہیں، لیکن اصول وہی رہے گا۔'" },
             { title: "چھوٹی تعریف", detail: "جب بچہ تھوڑا سا بھی ٹھیک کرے، فوراً تعریف کریں۔" },
           ],
-          checkIn: { kind: "time", text: "تین دن یہ آزمائیں، پھر بتائیں کیا فرق پڑا؟" },
+          checkIn: {
+            kind: "time",
+            text: "تین دن یہ آزمائیں، پھر بتائیں کیا فرق پڑا؟",
+            comeBackInHours: 72,
+            resumeQuestion: "تین دن ہو گئے! نیا معمول کیسا رہا؟ کیا فرق پڑا؟",
+          },
         };
   }
   if (/\b(adhd|autis|diagnos|medicine|medication|dose|lawyer|custody|legal)\b/.test(t)) {
@@ -74,7 +84,7 @@ export function demoReply(text: string): CoachReply {
         { title: "Note real examples", detail: "Write down what happens, when, and how often, and bring the list to the appointment." },
         { title: "Keep routines steady", detail: "Meanwhile, predictable days and calm one-on-one time help almost every child." },
       ],
-      checkIn: { kind: "question", text: "Would you like help preparing questions for the appointment?" },
+      checkIn: { kind: "question", text: "Would you like help preparing questions for the appointment?", comeBackInHours: null, resumeQuestion: null },
     };
   }
   if (/\b(sleep|bed|bedtime|night|wake)/.test(t)) {
@@ -87,7 +97,12 @@ export function demoReply(text: string): CoachReply {
         { title: "Screens off an hour before", detail: "Swap the tablet for a calm activity like drawing or a puzzle." },
         { title: "Boring, brief returns", detail: "If they get up, walk them back calmly with one line: 'It's sleep time.'" },
       ],
-      checkIn: { kind: "time", text: "Try this for 3 nights, then tell me what changed." },
+      checkIn: {
+        kind: "time",
+        text: "Try this for 3 nights, then tell me what changed.",
+        comeBackInHours: 72,
+        resumeQuestion: "It's been 3 nights. How did bedtime go? What changed?",
+      },
     };
   }
   return {
@@ -99,6 +114,11 @@ export function demoReply(text: string): CoachReply {
       { title: "Name it, hold the limit", detail: "'You're upset it's over. It's still over.' Stay calm and close, and don't re-argue." },
       { title: "Have a next thing ready", detail: "Move straight to something they enjoy so the switch has something to look forward to." },
     ],
-    checkIn: { kind: "question", text: "How old is your child, and when does this usually happen?" },
+    checkIn: {
+      kind: "time",
+      text: "Try this for 3 days, then come back and tell me how the switch-off went.",
+      comeBackInHours: 72,
+      resumeQuestion: "It's been 3 days. How did the switch-off go? What worked, and what was still hard?",
+    },
   };
 }

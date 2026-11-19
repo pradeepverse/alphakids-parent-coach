@@ -39,6 +39,7 @@ scripts/test-safety.ts          regression cases for the deterministic crisis ch
 src/lib/safety.ts               deterministic crisis pre-check (EN, Urdu script, Roman Urdu)
 src/lib/coach.ts                in-browser deepagent (deepagents/browser + ChatAnthropic)
 src/lib/fallbacks.ts            fixed crisis reply + labelled demo replies (no-key mode)
+src/lib/checkins.ts             saved chat (localStorage), pending check-ins, .ics reminder + resume link
 src/lib/types.ts                CoachReply zod schema (the reply contract)
 src/components/                 CoachChat (chat + settings), ReplyCard (structured reply UI)
 src/stubs/                      browser stand-ins for Node-only imports (ws, node:async_hooks)
@@ -61,7 +62,9 @@ docs/ARCHITECTURE.md            architecture + safety design;  docs/DESIGN.md: U
 6. When you add a crisis keyword, add a case to `scripts/test-safety.ts` (both a must-trigger
    and a nearby must-not-trigger case where possible).
 7. Keep it static: no API routes, server actions, or anything needing a Node server.
-8. Urdu: right-to-left text uses `dir="rtl"`/`dir="auto"` and the `.urdu`/`lang="ur"` font rules.
+8. Check-ins: crisis replies must never schedule a later check-in (`pendingFromReply` returns null).
+   A resumed check-in must not duplicate on reload.
+9. Urdu: right-to-left text uses `dir="rtl"`/`dir="auto"` and the `.urdu`/`lang="ur"` font rules.
    Test with Urdu script **and** Roman Urdu.
 
 ## Gotchas

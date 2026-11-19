@@ -68,6 +68,42 @@ exposing or paying for a key.
 novel phrasing may slip past layer 1 and rely on layer 2). Next step: a small classifier model
 call or moderation API as an extra layer, plus a labelled eval set.
 
+## Check-ins (serverless)
+Every reply ends with a check-in of one of two kinds (`checkIn.kind`):
+
+| Kind | Meaning | UI |
+|---|---|---|
+| `question` | The coach needs one detail **now** | "💬 Quick question" + **Answer** (focuses the input) |
+| `time` | Try the plan, **come back later** (`comeBackInHours`, `resumeQuestion`) | "⏰ Check back in 3 days" + **📅 Remind me** |
+
+A true "notify me in 3 days" needs web push (service worker + push server + stored
+subscriptions), which means a backend; browsers have no shipped API to schedule a local
+notification. So, without a server:
+1. The conversation and pending check-ins are saved in the browser (`localStorage`, `src/lib/checkins.ts`).
+2. **Remind me** downloads a calendar event (`.ics`) at the due time. The phone's calendar
+   does the notifying, and the event links to `…/?checkin=<replyId>`.
+3. Opening that link, or simply reopening the site after the due time, resumes the chat:
+   the coach posts the `resumeQuestion` ("It's been 3 days. How did the switch-off go?"), and
+   the parent's answer goes back to the agent with the full history, so it adapts the plan.
+4. Crisis replies never schedule a later check-in; their check-in is always "Are you safe right now?"
+
+Optional **"Remember key on this device"** keeps a BYO key in `localStorage` so the reminder,
+which opens a new tab, continues in live mode (default: this tab only).
+
+**Production next step: PWA + web push.**
+- **PWA:** web app manifest, icons, and a service worker caching the app shell, so parents can
+  install it to the home screen. This also unlocks web push on iOS, which only allows push for
+  installed web apps.
+- **Push:** on "Remind me", ask permission (`Notification.requestPermission`), create a
+  `PushSubscription` (VAPID keys), and send `{subscription, dueAt, replyId, resumeQuestion}` to a
+  small backend (e.g. a Cloudflare Worker + KV + Cron Trigger, or a serverless function + queue).
+  At `dueAt` it sends the push; the service worker shows the notification and, on click, opens
+  `/?checkin=<replyId>`. The resume logic already exists.
+- **Guardrails:** explicit consent, quiet hours, one reminder per plan, an easy "stop reminders",
+  no child details in the notification text, and never a scheduled "come back later" for crisis
+  replies.
+- Alternative channel for this market: WhatsApp reminders (Business API) with the same flow.
+
 ## Language
 `urdu-replies` skill: reply in the parent's language **and script** (`en` / `ur` / `ur-Latn`).
 The UI sets `dir="rtl"` and the Nastaliq font for `ur`; input uses `dir="auto"`.
@@ -90,5 +126,5 @@ The UI sets `dir="rtl"` and the Nastaliq font for `ur`; input uses `dir="auto"`.
 - **Server API route:** dropped for GitHub Pages; see "Deployment & keys".
 
 ## What I'd do next
-Server-side key and rate limiting · eval set of ~100 labelled concerns (EN/UR) run in CI ·
+Push/WhatsApp check-in reminders · server-side key and rate limiting · eval set of ~100 labelled concerns (EN/UR) run in CI ·
 streaming replies · persisted check-in reminders · native-speaker review of the Urdu skill.

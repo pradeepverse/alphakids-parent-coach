@@ -62,7 +62,9 @@ export async function runCoach(
       ? [{ role: "user", content: m.content }]
       : m.role === "assistant"
         ? [{ role: "assistant", content: replyToText(m.reply) }]
-        : [],
+        : m.role === "checkin"
+          ? [{ role: "assistant", content: `(Scheduled check-in: the parent came back.) ${m.text}` }]
+          : [],
   );
   if (opts.crisisHint) {
     messages.push({

@@ -19,6 +19,8 @@ description: Use when the parent writes in Urdu script (اردو), Roman Urdu (e
 - Common English words parents actually use are fine (e.g. "screen time", "school",
   "routine", "tablet").
 - Keep the same short structure: 2–4 steps, short sentences, one check-in.
+- `resumeQuestion` (the question asked when the parent comes back) is in the same language
+  and script too, e.g. "تین راتیں ہو گئیں! سونے کا وقت کیسا رہا؟"
 - In crisis replies, keep it extra simple, e.g. "اگر ابھی کسی کو خطرہ ہے تو فوراً اپنے
   علاقے کے ایمرجنسی نمبر پر کال کریں۔"
 

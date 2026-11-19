@@ -18,8 +18,20 @@ export const CoachReplySchema = z.object({
     )
     .describe("2-4 steps (3 is ideal)"),
   checkIn: z.object({
-    kind: z.enum(["question", "time"]),
-    text: z.string().describe("Follow-up question, or when to come back"),
+    kind: z
+      .enum(["question", "time"])
+      .describe("question = ask something now to tailor the plan; time = parent tries the plan, then comes back"),
+    text: z.string().describe("The question, or the come-back instruction (e.g. 'Try this for 3 nights, then tell me what changed.')"),
+    comeBackInHours: z
+      .number()
+      .nullable()
+      .describe("For kind=time: hours until the check-in (e.g. 72 for 3 days). null for kind=question."),
+    resumeQuestion: z
+      .string()
+      .nullable()
+      .describe(
+        "For kind=time: the warm question the coach asks when the parent comes back (e.g. 'It's been 3 days. How did the TV switch-off go?'), in the parent's language. null for kind=question.",
+      ),
   }),
 });
 
@@ -30,6 +42,8 @@ export type ReplySource = "live" | "demo" | "safety-fallback";
 export type ChatMessage =
   | { id: string; role: "user"; content: string }
   | { id: string; role: "assistant"; reply: CoachReply; source: ReplySource }
+  /** The coach re-opening the conversation when the parent comes back for a scheduled check-in. */
+  | { id: string; role: "checkin"; text: string; language: CoachReply["language"]; forReplyId: string }
   | { id: string; role: "error"; content: string };
 
 /** Flattens a structured reply into text so it can be sent back as conversation history. */

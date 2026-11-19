@@ -24,7 +24,8 @@
 │ │ ① Title                       │ │
 │ │   detail                      │ │
 │ │ ② …  ③ …                      │ │
-│ │ ⏰ Check-in: try for 3 nights │ │  check-in chip (brand tint)
+│ │ ⏰ CHECK BACK IN 3 DAYS        │ │  check-in: time → [📅 Remind me]
+│ │ Try for 3 nights, then…       │ │            question → [Answer ↵]
 │ └───────────────────────────────┘ │
 ├───────────────────────────────────┤
 │ [ Type your concern… / اردو ] Send│  composer: Enter sends, Shift+Enter newline
@@ -38,6 +39,11 @@
 | `none` | Neutral card, green step numbers |
 | `caution` | Amber strip: "Outside what a coach can advise on" |
 | `crisis` | Red border, red 🚨 banner with fixed emergency text, red step numbers |
+
+Check-in block: **"💬 Quick question"** (answer now, **Answer ↵** focuses the input) vs
+**"⏰ Check back in N days"** (later, **📅 Remind me** downloads a calendar reminder; the button turns
+into "✓ Reminder added" and then "✓ Checked in" once the parent comes back). The coach's
+resumed message renders as a green "⏰ Check-in · welcome back" bubble.
 
 Source labels (small, muted): **Demo reply** (no key) and **Safety fallback** (model failed on
 a flagged message). Live replies have no label.

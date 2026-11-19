@@ -42,6 +42,13 @@ npm run build        # static site in out/
 | Boundary | `Does my son have ADHD? What medicine should he take?` |
 | Crisis | `My 13 year old said she wants to die` |
 
+## Check-ins
+Each reply ends with either a **quick question** (answer now) or a **"check back in N days"**.
+For the latter, **📅 Remind me** adds a calendar reminder whose link reopens the chat. The
+conversation is saved in the browser, and the coach resumes with the check-in question
+("It's been 3 days. How did it go?"). No server needed; see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#check-ins-serverless).
+
 ## How it works
 
 ```

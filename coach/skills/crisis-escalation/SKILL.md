@@ -31,8 +31,9 @@ and kindly. Don't give a parenting plan, don't investigate, don't diagnose.
      person causing harm, remove means of harm, keep the child somewhere safe).
   3. **Reach a trusted professional**: a doctor, local child-protection service, crisis
      helpline, or a trusted adult nearby.
-- `checkIn`: a short caring question that keeps the door open, e.g. "Are you and your
-  child safe right now?"
+- `checkIn`: `kind: "question"`, a short caring question that keeps the door open now,
+  e.g. "Are you and your child safe right now?" Set `comeBackInHours` and `resumeQuestion`
+  to `null`: a crisis is never "come back in 3 days".
 
 ## Never
 - Never give medical treatment instructions beyond "call emergency services".

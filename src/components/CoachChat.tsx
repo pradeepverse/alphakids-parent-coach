@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { checkSafety } from "@/lib/safety";
 import { crisisReply, demoReply } from "@/lib/fallbacks";
 import type { ChatMessage, CoachReply, ReplySource } from "@/lib/types";
+import { downloadReminder, loadChat, pendingFromReply, saveChat, type PendingCheckIn } from "@/lib/checkins";
 import { ReplyCard } from "./ReplyCard";
 
 const KEY_STORAGE = "ak-coach-anthropic-key";
@@ -17,19 +18,31 @@ const EXAMPLES = [
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
+/**
+ * API key storage. Default: sessionStorage (this tab only). If the parent opts in to
+ * "Remember key on this device", localStorage, so a check-in reminder that opens a
+ * new tab can continue in live mode.
+ */
 function readStore(k: string) {
   try {
-    return sessionStorage.getItem(k) ?? "";
+    return sessionStorage.getItem(k) ?? localStorage.getItem(k) ?? "";
   } catch {
     return "";
   }
 }
-function writeStore(k: string, v: string) {
+function writeStore(k: string, v: string, remember = false) {
   try {
-    if (v) sessionStorage.setItem(k, v);
-    else sessionStorage.removeItem(k);
+    for (const store of [sessionStorage, localStorage]) store.removeItem(k);
+    if (v) (remember ? localStorage : sessionStorage).setItem(k, v);
   } catch {
-    /* storage unavailable: key just won't persist across reloads */
+    /* storage unavailable: value just won't persist across reloads */
+  }
+}
+function isRemembered(k: string) {
+  try {
+    return localStorage.getItem(k) !== null;
+  } catch {
+    return false;
   }
 }
 
@@ -40,13 +53,43 @@ export function CoachChat() {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [rememberKey, setRememberKey] = useState(false);
+  const [pending, setPending] = useState<PendingCheckIn[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  const [remindedIds, setRemindedIds] = useState<string[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from sessionStorage after mount
+    /* eslint-disable react-hooks/set-state-in-effect -- hydrate from browser storage after mount */
     setApiKey(readStore(KEY_STORAGE));
     setModel(readStore(MODEL_STORAGE));
+    setRememberKey(isRemembered(KEY_STORAGE));
+
+    // Restore the saved conversation, then resume any check-in that is due
+    // (or that the parent opened from a calendar reminder link: ?checkin=<replyId>).
+    const saved = loadChat();
+    const params = new URLSearchParams(window.location.search);
+    const linked = params.get("checkin");
+    const now = Date.now();
+    const due = saved.pending.filter((p) => p.replyId === linked || p.dueAt <= now);
+    const resumed: ChatMessage[] = due.map((p) => ({
+      id: uid(),
+      role: "checkin",
+      text: p.question,
+      language: p.language,
+      forReplyId: p.replyId,
+    }));
+    setMessages([...saved.messages, ...resumed]);
+    setPending(saved.pending.filter((p) => !due.includes(p)));
+    setHydrated(true);
+    if (linked) window.history.replaceState(null, "", window.location.pathname);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
+
+  useEffect(() => {
+    if (hydrated) saveChat({ messages: messages.filter((m) => m.role !== "error"), pending });
+  }, [messages, pending, hydrated]);
 
   useEffect(() => {
     // New coach reply: scroll to its top so the parent reads the summary first.
@@ -92,7 +135,10 @@ export function CoachChat() {
         reply = safety.crisis ? crisisReply(content) : demoReply(content);
         source = "demo";
       }
-      setMessages((m) => [...m, { id: uid(), role: "assistant", reply, source }]);
+      const replyId = uid();
+      setMessages((m) => [...m, { id: replyId, role: "assistant", reply, source }]);
+      const p = pendingFromReply(replyId, reply);
+      if (p) setPending((list) => [...list, p]);
     } catch (err) {
       console.error("[coach]", err);
       if (safety.crisis) {
@@ -138,7 +184,11 @@ export function CoachChat() {
           {messages.length > 0 && (
             <button
               type="button"
-              onClick={() => setMessages([])}
+              onClick={() => {
+                setMessages([]);
+                setPending([]);
+                setRemindedIds([]);
+              }}
               disabled={busy}
               aria-label="New chat"
               className="min-h-9 min-w-9 rounded-lg border border-line px-2 text-xs hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-40 sm:px-3"
@@ -171,7 +221,7 @@ export function CoachChat() {
               value={apiKey}
               onChange={(e) => {
                 setApiKey(e.target.value);
-                writeStore(KEY_STORAGE, e.target.value.trim());
+                writeStore(KEY_STORAGE, e.target.value.trim(), rememberKey);
               }}
               placeholder="sk-ant-…"
               className="mt-1 w-full rounded-lg border border-line bg-bg px-3 py-2"
@@ -184,15 +234,29 @@ export function CoachChat() {
               value={model}
               onChange={(e) => {
                 setModel(e.target.value);
-                writeStore(MODEL_STORAGE, e.target.value.trim());
+                writeStore(MODEL_STORAGE, e.target.value.trim(), rememberKey);
               }}
               placeholder="claude-opus-5-5"
               className="mt-1 w-full rounded-lg border border-line bg-bg px-3 py-2"
             />
           </label>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              name="remember-key"
+              checked={rememberKey}
+              onChange={(e) => {
+                setRememberKey(e.target.checked);
+                writeStore(KEY_STORAGE, apiKey.trim(), e.target.checked);
+                writeStore(MODEL_STORAGE, model.trim(), e.target.checked);
+              }}
+              className="h-4 w-4 accent-[var(--brand)]"
+            />
+            Remember key on this device (so check-in reminders continue live)
+          </label>
           <p className="text-xs text-muted">
-            The key stays in this browser tab (session storage) and is sent only to Anthropic. Without a key, the coach
-            shows clearly labelled sample replies.
+            The key is sent only to Anthropic. By default it stays in this tab only. Without a key, the coach shows clearly
+            labelled sample replies.
           </p>
         </section>
       )}
@@ -232,7 +296,32 @@ export function CoachChat() {
             </div>
           ) : m.role === "assistant" ? (
             <div key={m.id} id={`msg-${m.id}`} data-testid="msg-coach" className="flex scroll-mt-3 justify-start">
-              <ReplyCard reply={m.reply} source={m.source} />
+              <ReplyCard
+                reply={m.reply}
+                source={m.source}
+                reminded={remindedIds.includes(m.id)}
+                checkedIn={messages.some((x) => x.role === "checkin" && x.forReplyId === m.id)}
+                onAnswer={() => inputRef.current?.focus()}
+                onRemind={() => {
+                  const p = pending.find((x) => x.replyId === m.id) ?? pendingFromReply(m.id, m.reply);
+                  if (!p) return;
+                  downloadReminder(p);
+                  setRemindedIds((ids) => [...ids, m.id]);
+                }}
+              />
+            </div>
+          ) : m.role === "checkin" ? (
+            <div key={m.id} id={`msg-${m.id}`} data-testid="msg-checkin" className="flex scroll-mt-3 justify-start">
+              <div
+                dir={m.language === "ur" ? "rtl" : "ltr"}
+                lang={m.language === "ur" ? "ur" : "en"}
+                className="max-w-[34rem] rounded-2xl border border-brand/40 bg-brand-soft px-4 py-3"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand" lang="en" dir="ltr">
+                  ⏰ Check-in · welcome back
+                </p>
+                <p className="mt-1">{m.text}</p>
+              </div>
             </div>
           ) : (
             <p key={m.id} id={`msg-${m.id}`} data-testid="msg-coach" role="alert" className="rounded-xl bg-caution-soft px-4 py-2 text-sm text-caution">
@@ -274,6 +363,7 @@ export function CoachChat() {
                 send(input);
               }
             }}
+            ref={inputRef}
             placeholder="Type your concern… / اپنی پریشانی لکھیں"
             aria-label="Your concern"
             maxLength={2000}
