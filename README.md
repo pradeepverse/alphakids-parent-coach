@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Alpha Kids Parent Coach
 
-## Getting Started
+A small Next.js app where a parent describes a concern in **English or Urdu** (Urdu script or
+Roman Urdu) and an LLM coach replies with a **short, structured, safe plan** and a **check-in**.
+The coach doesn't diagnose, doesn't give medical or legal instructions, and **escalates
+emergencies, abuse and self-harm**.
 
-First, run the development server:
+The coach is a LangChain **[deepagents](https://github.com/langchain-ai/deepagentsjs)** agent
+driven by **markdown skills** ([`coach/`](coach/)), running fully in the browser. The site is
+a static export, so it deploys to GitHub Pages with no server or database.
+
+## Run locally
+
+Requires Node 20+ (tested on Node 24).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Demo mode (default):** without an API key you get clearly labelled sample replies. The
+  safety check still runs, so crisis messages escalate.
+- **Live mode:** click **Settings** and paste an Anthropic API key. It's kept in this tab's
+  `sessionStorage` and sent only to Anthropic. Optionally set a model (default
+  `claude-sonnet-5-5`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Other commands:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run test:safety  # crisis-detection regression cases (EN / اردو / Roman Urdu)
+npm run typecheck
+npm run lint
+npm run build        # static site in out/
+```
 
-## Learn More
+## Try it
+| Type | Example |
+|---|---|
+| Everyday (EN) | `My 4 year old screams every time we turn off the TV.` |
+| Everyday (اردو) | `میرا بیٹا رات کو سوتا نہیں، بہت ضد کرتا ہے` |
+| Everyday (Roman Urdu) | `Meri beti school jane se pehle roz rone lagti hai` |
+| Boundary | `Does my son have ADHD? What medicine should he take?` |
+| Crisis | `My 13 year old said she wants to die` |
 
-To learn more about Next.js, take a look at the following resources:
+## How it works
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+message → 1. deterministic safety check (regex, EN/UR)  ─┐ can only raise risk
+        → 2. deepagents coach: AGENTS.md persona + 4 SKILL.md skills
+        → 3. typed reply {risk, summary, steps[], checkIn} → cards (RTL for Urdu)
+             crisis → fixed emergency banner (code, never model text)
+             model fails on a crisis → fixed crisis reply
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Skills: `everyday-coaching` · `crisis-escalation` · `boundaries` · `urdu-replies`.
+Change how the coach behaves by editing markdown in [`coach/`](coach/), not code.
 
-## Deploy on Vercel
+More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (architecture and safety) ·
+[docs/DESIGN.md](docs/DESIGN.md) (UI) · [AGENTS.md](AGENTS.md) (guide for coding agents).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy (GitHub Pages)
+Push to `main`. [`.github/workflows/pages.yml`](.github/workflows/pages.yml) builds the static
+export with the right base path and publishes it. In the repo, set **Settings → Pages → Source:
+GitHub Actions**.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes and limits
+- Bring-your-own-key in the browser suits a demo. In production the agent would sit behind a
+  small server so the key never reaches the client.
+- Emergency guidance is deliberately generic ("call your local emergency number"); no
+  country-specific numbers.
+- Not medical or legal advice.

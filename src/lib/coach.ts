@@ -1,76 +1,77 @@
-import "server-only";
-import path from "node:path";
-import { createDeepAgent, FilesystemBackend } from "deepagents";
+"use client";
+
+import { createDeepAgent } from "deepagents/browser";
 import { ChatAnthropic } from "@langchain/anthropic";
-import { z } from "zod";
+import { toolStrategy } from "langchain";
+import { COACH_FILES } from "@/generated/coach-files";
+import { CoachReplySchema, replyToText, type ChatMessage, type CoachReply } from "./types";
 
-/** Structured reply the agent must return. The UI renders this as cards. */
-export const CoachReplySchema = z.object({
-  risk: z
-    .enum(["none", "caution", "crisis"])
-    .describe("none = everyday concern; caution = touches medical/legal (boundaries skill); crisis = emergency/abuse/self-harm"),
-  language: z.enum(["en", "ur", "ur-Latn"]).describe("Language/script of the reply, matching the parent"),
-  summary: z.string().describe("One empathetic sentence reflecting the concern"),
-  steps: z
-    .array(
-      z.object({
-        title: z.string().describe("2-5 word action-first title"),
-        detail: z.string().describe("1-2 short sentences: what to do or say"),
-      }),
-    )
-    .min(1)
-    .max(4),
-  checkIn: z.object({
-    kind: z.enum(["question", "time"]),
-    text: z.string().describe("Follow-up question, or when to come back"),
-  }),
-});
+export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
-export type CoachReply = z.infer<typeof CoachReplySchema>;
-
-export interface ChatTurn {
-  role: "user" | "assistant";
-  content: string;
-}
-
-const COACH_DIR = path.join(process.cwd(), "coach");
-
-function buildAgent() {
+/**
+ * Runs the skill-driven deep agent entirely in the browser.
+ * The coach persona (/AGENTS.md) and skills (/skills/<name>/SKILL.md) are loaded into
+ * deepagents' in-memory StateBackend from the bundled markdown.
+ */
+function buildAgent(apiKey: string, model: string) {
   return createDeepAgent({
     name: "alpha-kids-parent-coach",
     model: new ChatAnthropic({
-      model: process.env.COACH_MODEL ?? "claude-sonnet-5-5",
-      temperature: 0.3,
+      model,
+      apiKey,
       maxTokens: 1500,
+      // BYO key: the key stays in this browser tab and goes only to api.anthropic.com.
+      clientOptions: { dangerouslyAllowBrowser: true },
     }),
-    // Coach persona + skills are plain markdown on disk, served read-only.
-    backend: new FilesystemBackend({ rootDir: COACH_DIR, virtualMode: true }),
     memory: ["/AGENTS.md"],
     skills: ["/skills/"],
     permissions: [
       { operations: ["read"], paths: ["/**"] },
       { operations: ["write"], paths: ["/**"], mode: "deny" },
     ],
-    responseFormat: CoachReplySchema,
+    // Tool-calling structured output: the final answer must match the reply schema.
+    responseFormat: toolStrategy(CoachReplySchema),
   });
 }
 
-let agent: ReturnType<typeof buildAgent> | undefined;
+function seedFiles() {
+  const now = new Date().toISOString();
+  return Object.fromEntries(
+    Object.entries(COACH_FILES).map(([p, content]) => [
+      p,
+      { content, mimeType: "text/markdown", created_at: now, modified_at: now },
+    ]),
+  );
+}
 
-export async function runCoach(history: ChatTurn[], crisisHint: string | null): Promise<CoachReply> {
-  agent ??= buildAgent();
+let cached: { key: string; model: string; agent: ReturnType<typeof buildAgent> } | undefined;
 
-  const messages = history.map((m) => ({ role: m.role, content: m.content }));
-  if (crisisHint) {
-    // The deterministic pre-check fired: tell the agent explicitly.
+export async function runCoach(
+  history: ChatMessage[],
+  opts: { apiKey: string; model?: string; crisisHint: string | null },
+): Promise<CoachReply> {
+  const model = opts.model || DEFAULT_MODEL;
+  if (!cached || cached.key !== opts.apiKey || cached.model !== model) {
+    cached = { key: opts.apiKey, model, agent: buildAgent(opts.apiKey, model) };
+  }
+
+  type Turn = { role: "user" | "assistant"; content: string };
+  const messages = history.flatMap((m): Turn[] =>
+    m.role === "user"
+      ? [{ role: "user", content: m.content }]
+      : m.role === "assistant"
+        ? [{ role: "assistant", content: replyToText(m.reply) }]
+        : [],
+  );
+  if (opts.crisisHint) {
     messages.push({
       role: "user",
-      content: `[system safety note: the app's safety check flagged this message as a possible ${crisisHint}. Use the crisis-escalation skill.]`,
+      content: `[app safety note: the safety check flagged the last message as possible ${opts.crisisHint}. Use the crisis-escalation skill.]`,
     });
   }
 
-  const result = await agent.invoke({ messages }, { recursionLimit: 25 });
+  const result = await cached.agent.invoke({ messages, files: seedFiles() }, { recursionLimit: 25 });
   const parsed = CoachReplySchema.safeParse((result as { structuredResponse?: unknown }).structuredResponse);
-  if (!parsed.success) throw new Error("Coach returned an invalid reply");
+  if (!parsed.success) throw new Error("The coach returned an unexpected reply format.");
   return parsed.data;
 }
