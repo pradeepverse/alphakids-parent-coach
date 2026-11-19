@@ -26,7 +26,7 @@ abuse and self-harm.
  │      everyday-coaching · crisis-escalation · boundaries ·    │
  │      urdu-replies                                            │
  │    files: read-only (permissions deny write)                 │
- │    output: toolStrategy(CoachReplySchema)  → typed JSON       │
+ │    output: providerStrategy(schema) → native JSON output     │
  └──────────────────────────────────────────────────────────────┘
       │
       ▼
